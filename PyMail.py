@@ -4,10 +4,8 @@ import base64
 import os
 import re
 import uuid
-import time
 import datetime
-import math
-import pytz
+import ssl
 
 
 class Mail(object):
@@ -77,7 +75,7 @@ class Mail(object):
 
         self._from = mail_from
 
-        self._set_header('From', name + ' <' + mail_from + '>');
+        self._set_header('From', name + mail_from)
 
 
 
@@ -179,6 +177,10 @@ class Mail(object):
         if command == 'QUIT':
             command_extended = 'QUIT'
             resp_code = '221'
+        
+        if command == 'STARTTLS':
+            command_extended = 'STARTTLS'
+            resp_code = '220'
 
         self._send_data(command_extended)
         self._read_data()
@@ -259,6 +261,8 @@ class Mail(object):
             self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.__sock.settimeout(2)
             self.__sock.connect((self.__resolve_host(), self.__smtp_port))
+            
+            context = ssl.create_default_context()
 
         except socket.error as err:
             print ("connecting to mail server failed: %s" %(err))
@@ -267,6 +271,14 @@ class Mail(object):
         self._read_data()
 
         self._send_command("HELLO")
+        self._send_command("STARTTLS")
+        
+
+        try:
+            self.__sock = context.wrap_socket(self.__sock, server_hostname = self.__smtp_host)
+        except socket.error as err:
+            print ("connecting to mail server failed: %s" %(err))
+            exit()
 
 
 
